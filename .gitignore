@@ -1,0 +1,19 @@
+# Raw dataset (198 MB, CC BY 4.0, downloaded separately - see README)
+data/raw/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
