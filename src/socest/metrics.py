@@ -41,16 +41,19 @@ def soc_metrics(est, run, i_meas=None, sig=None):
         ``coverage_3sig``, ``mean_sig`` (with ``sig``): fraction of settled samples whose error is within
         3 sigma, and the mean reported sigma [% SoC].
     """
-    e = (est - run.soc) * 100
-    late = run.t >= SETTLE_S
+    e = (est - run.soc) * 100           # signed error in SoC percentage points (+ = overestimate)
+    late = run.t >= SETTLE_S            # exclude the convergence period after a wrong initial guess
     out = dict(rmse=float(np.sqrt(np.mean(e ** 2))), maxabs=float(np.max(np.abs(e))),
                rmse_settled=float(np.sqrt(np.mean(e[late] ** 2))), maxabs_settled=float(np.max(np.abs(e[late]))),
                final=float(e[-1]),
                frac_outside_01=float(np.mean((est < 0) | (est > 1))))
     if i_meas is not None:
+        # SoC change implied by the measured charge alone (the same rectangle rule as Coulomb
+        # counting); anything the estimate changed beyond this did not come from the current
         cc = np.sum(i_meas[:-1]) * DT / (3600 * Q_REF)
         out["unexplained_dsoc"] = float(((est[-1] - est[0]) - cc) * 100)
     if sig is not None:
+        # e is in percent and sig is a fraction, so 3 sigma in the same units is 300 * sig
         out["coverage_3sig"] = float(np.mean(np.abs(e[late]) <= 300 * sig[late]))
         out["mean_sig"] = float(np.mean(sig[late]) * 100)
     return out
