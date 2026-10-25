@@ -153,9 +153,10 @@ def find_cycle_file(temp, cycle):
     _check_raw()
     if temp not in TEMP_DIRS:
         raise KeyError(f"temperature {temp} not in dataset; choose from {list(TEMP_DIRS)}")
+    # the drive-cycle folder is named "Drive cycles" or "Drive Cycles" depending on temperature
     folder = next(p for p in TEMP_DIRS[temp].iterdir() if p.is_dir() and p.name.lower().startswith("drive"))
     prefix = f"{'n' if temp < 0 else ''}{abs(temp)}degC_"
-    pat = {"HWFET": r"HWF(ET|Ta)"}.get(cycle, re.escape(cycle))
+    pat = {"HWFET": r"HWF(ET|Ta)"}.get(cycle, re.escape(cycle))   # 25 degC names it HWFTa
     hits = [p for p in folder.glob("*.mat")
             if re.search(rf" {re.escape(prefix)}{pat}_Pan18650PF\.mat$", p.name)]
     if len(hits) != 1:
@@ -184,10 +185,13 @@ def load_cycle(temp, cycle, dt=DT):
     Run
     """
     d = load_mat(find_cycle_file(temp, cycle))
+    # first sample logged at the fast (0.1 s) rate = start of the drive cycle proper
     start = int(np.argmax(np.diff(d["t"]) < 0.5))
     d = {k: x[start:] for k, x in d.items()}
     t = d["t"]
-    keep = np.concatenate([[True], np.diff(t) > 0])
+    keep = np.concatenate([[True], np.diff(t) > 0])   # np.interp needs strictly increasing time
     tg = np.arange(t[0], t[keep][-1], dt)
+    # linear interpolation bridges the ~2 s logging gaps; they all fall at near-zero current, so the
+    # charge error this introduces is negligible (checked in tests/test_data.py)
     res = {k: np.interp(tg, t[keep], d[k][keep]) for k in ("v", "i", "T", "ah")}
     return Run(f"{temp}C_{cycle}", temp, tg - tg[0], **res)

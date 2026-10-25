@@ -118,7 +118,7 @@ def ekf(theta, v, i, T, dt, tab, s0_tab, ds_tab, soc0, p0_s, q_s, q_v, r):
     A = np.zeros((nx, nx))
     tmp = np.zeros((nx, nx))
     for k in range(n):
-        xk = 1000.0 / (T[k] + 273.15) - TREF_X
+        xk = 1000.0 / (T[k] + 273.15) - TREF_X     # Arrhenius variable for this sample's temperature
         s = x[0]
         # ---- measurement update
         ocv, docv = _ocv(tab, s0_tab, ds_tab, s, T[k])
@@ -133,10 +133,10 @@ def ekf(theta, v, i, T, dt, tab, s0_tab, ds_tab, soc0, p0_s, q_s, q_v, r):
             for b in range(nx):
                 acc += P[a, b] * H[b]
             PHt[a] = acc
-        S = r
+        S = r                                     # innovation variance S = H P H^T + r (a scalar)
         for a in range(nx):
             S += H[a] * PHt[a]
-        e = v[k] - y
+        e = v[k] - y                              # innovation: measured minus predicted voltage
         for a in range(nx):
             K[a] = PHt[a] / S
             x[a] += K[a] * e
@@ -157,17 +157,17 @@ def ekf(theta, v, i, T, dt, tab, s0_tab, ds_tab, soc0, p0_s, q_s, q_v, r):
                     acc += tmp[a, c] * A[b, c]
                 P[a, b] = acc + r * K[a] * K[b]
         soc[k] = x[0]
-        sig[k] = np.sqrt(max(P[0, 0], 0.0))
+        sig[k] = np.sqrt(max(P[0, 0], 0.0))      # max() guards against a tiny negative from rounding
         innov[k] = e
         # ---- time update (uses the posterior SoC for the parameter lookup)
         s = x[0]
         F[:, :] = 0.0
         F[0, 0] = 1.0
-        x[0] = s + i[k] * dt / (3600.0 * Q_REF)
+        x[0] = s + i[k] * dt / (3600.0 * Q_REF)   # SoC prediction = Coulomb counting over one step
         for m in range(n_rc):
             R, dR = _param(theta[1 + 2 * m], s, xk)
             tau, dtau = _param(theta[2 + 2 * m], s, xk)
-            a_ = np.exp(-dt / tau)
+            a_ = np.exp(-dt / tau)                # exact ZOH factor, always in (0, 1): stable for any dt
             da = a_ * dt / (tau * tau) * dtau
             vm = x[1 + m]
             F[1 + m, 1 + m] = a_

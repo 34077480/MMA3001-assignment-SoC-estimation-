@@ -36,6 +36,7 @@ NORM = dict(v=(3.6, 0.4), i=(0.0, 10.0), T=(5.0, 20.0))
 def to_1hz(x, k=FS_DECIM):
     """Block-average a 10 Hz signal to 1 Hz (drops a trailing partial block)."""
     n = len(x) // k * k
+    # averaging (not subsampling) keeps the mean current, so charge throughput is preserved
     return x[:n].reshape(-1, k).mean(1)
 
 
@@ -46,7 +47,7 @@ def to_10hz(x, n, k=FS_DECIM):
     the next one, so no estimate ever uses future measurements.
     """
     y = np.repeat(x, k)
-    y = np.concatenate([np.full(k - 1, y[0]), y])[:n]
+    y = np.concatenate([np.full(k - 1, y[0]), y])[:n]   # delay by k-1 samples: block j is known at its end
     return np.concatenate([y, np.full(n - len(y), y[-1])]) if len(y) < n else y
 
 
@@ -122,9 +123,11 @@ def make_batch(runs, rng, max_start_frac=0.6):
         v, i, T = augment(r, rng)
         x = features(to_1hz(v), to_1hz(i), to_1hz(T))
         y = to_1hz(r.soc).astype(np.float32)
+        # random start point: the network must infer SoC from the data, not assume it starts at 100 %
         s = int(rng.uniform(0, max_start_frac) * len(y))
         xs.append(x[s:])
         ys.append(y[s:])
+    # pad to the longest sequence; the mask M keeps padded steps out of the loss
     L = max(len(y) for y in ys)
     X = np.zeros((len(xs), L, 3), np.float32)
     Y = np.zeros((len(xs), L), np.float32)
@@ -244,15 +247,17 @@ def train(kind="lstm", hidden=32, chunk=500, epochs=600, warm=60, seed=0, lr=1e-
         X, Y, M = make_batch(train_runs, rng)
         h = None
         tot, nchunks = 0.0, 0
+        # MSE first for a stable start, then the uncertainty-aware beta-NLL loss
         use_nll = ep >= epochs // 5
         for a in range(0, X.shape[1], chunk):
             mu, logvar, h = model(X[:, a:a + chunk], h)
+            # truncated BPTT: carry the hidden state forward but stop gradients at the chunk boundary
             h = tuple(z.detach() for z in h) if isinstance(h, tuple) else h.detach()
             nll, mse = gaussian_nll(mu, logvar, Y[:, a:a + chunk], M[:, a:a + chunk], warm if a == 0 else 0)
             loss = nll if use_nll else mse
             opt.zero_grad()
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            nn.utils.clip_grad_norm_(model.parameters(), 1.0)   # guards against exploding RNN gradients
             opt.step()
             tot += float(mse.detach())
             nchunks += 1
@@ -263,6 +268,7 @@ def train(kind="lstm", hidden=32, chunk=500, epochs=600, warm=60, seed=0, lr=1e-
                  for r in val_runs]
             val = float(np.mean(e))
             hist.append(dict(epoch=ep + 1, train_rmse=float(np.sqrt(tot / nchunks) * 100), val_rmse=val))
+            # early stopping on validation; only NLL-phase epochs, so the variance head is trained
             if val < best and use_nll:
                 best, best_state = val, {k: v.clone() for k, v in model.state_dict().items()}
             if verbose:

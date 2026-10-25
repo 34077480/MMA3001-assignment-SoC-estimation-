@@ -141,7 +141,7 @@ evidence-supported improvements, trade-offs.
   (0.07 s is the EKF). Compare `results/profile_ekf_pipeline.txt` before/after in the git history.
 * Pareto figure `pareto.png`: accuracy vs compute, physics vs black box.
 * **Final design justification**: your call, argued from the evidence. Facts: average accuracy tied;
-  EKF has lower worst-case error at 4 of 5 temperatures, interpretable states, explicit charge
+  EKF has lower worst-case error at 3 of 5 temperatures (within 1 point at the other two), interpretable states, explicit charge
   bookkeeping, is robust to initial-SoC and bias errors, and runs at 2 Hz for ~1.7 kFLOP/s; the LSTM
   needs no initial SoC and no characterisation tests, but has large seed variance, poor uncertainty
   calibration and no physical structure; the ensemble is most accurate at 3× the cost.
