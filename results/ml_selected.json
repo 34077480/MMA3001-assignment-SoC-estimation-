@@ -1,0 +1,17 @@
+{
+ "tags": [
+  "lstm32_c100_s0"
+ ],
+ "alpha": 0.5228904103840327,
+ "config": [
+  "lstm",
+  32,
+  100
+ ],
+ "seeds": [
+  "lstm32_c100_s0",
+  "lstm32_c100_s1",
+  "lstm32_c100_s2"
+ ],
+ "ensemble": "ens3_lstm32_c100"
+}

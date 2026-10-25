@@ -1,0 +1,23 @@
+         4581 function calls (4516 primitive calls) in 0.041 seconds
+
+   Ordered by: cumulative time
+   List reduced from 464 to 15 due to restriction <15>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    0.041    0.041 C:\Users\darre\OneDrive\Desktop\Claude\Sessions\soc-estimation\scripts\perf.py:179(<lambda>)
+        1    0.000    0.000    0.040    0.040 C:\Users\darre\OneDrive\Desktop\Claude\Sessions\soc-estimation\src\socest\api.py:76(estimate_soc)
+        1    0.000    0.000    0.028    0.028 C:\Users\darre\OneDrive\Desktop\Claude\Sessions\soc-estimation\src\socest\ml.py:178(estimate)
+        1    0.000    0.000    0.025    0.025 C:\Users\darre\OneDrive\Desktop\Claude\Sessions\soc-estimation\src\socest\ml.py:193(<listcomp>)
+        1    0.000    0.000    0.025    0.025 C:\Users\darre\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\utils\_contextlib.py:120(decorate_context)
+        1    0.000    0.000    0.025    0.025 C:\Users\darre\OneDrive\Desktop\Claude\Sessions\soc-estimation\src\socest\ml.py:164(predict)
+      3/1    0.000    0.000    0.024    0.024 C:\Users\darre\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\nn\modules\module.py:1779(_wrapped_call_impl)
+      3/1    0.000    0.000    0.024    0.024 C:\Users\darre\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\nn\modules\module.py:1787(_call_impl)
+        1    0.000    0.000    0.024    0.024 C:\Users\darre\OneDrive\Desktop\Claude\Sessions\soc-estimation\src\socest\ml.py:77(forward)
+        1    0.000    0.000    0.023    0.023 C:\Users\darre\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\nn\modules\rnn.py:1081(forward)
+        1    0.023    0.023    0.023    0.023 {built-in method torch.lstm}
+        1    0.000    0.000    0.009    0.009 C:\Users\darre\OneDrive\Desktop\Claude\Sessions\soc-estimation\src\socest\api.py:118(<listcomp>)
+        1    0.000    0.000    0.009    0.009 C:\Users\darre\OneDrive\Desktop\Claude\Sessions\soc-estimation\src\socest\ml.py:199(load_model)
+        1    0.000    0.000    0.008    0.008 C:\Users\darre\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\serialization.py:1315(load)
+      2/1    0.000    0.000    0.006    0.006 <frozen importlib._bootstrap>:1022(_find_and_load)
+
+
