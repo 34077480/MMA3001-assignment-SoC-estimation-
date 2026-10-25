@@ -101,6 +101,7 @@ def summary(res, methods):
 
 
 def main():
+    """Tune, evaluate and save results for one ECM order."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("n_rc", type=int, nargs="?", default=2)
     ap.add_argument("--suffix", default="")

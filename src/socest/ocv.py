@@ -182,6 +182,16 @@ class OCV:
         idx = lambda x: np.clip(((np.asarray(x) - self.s0) / self.ds).astype(int), 0, len(self.s) - 2)
         return self._rows(s, T, [lambda x, r=r: r[idx(x)] for r in slopes])
 
+    def save(self, path):
+        """Save the fitted model (the ``build`` output) to an ``.npz`` file."""
+        np.savez(path, **{k: np.asarray(v) for k, v in self.tab.items()})
+
+    @classmethod
+    def load(cls, path):
+        """Load a model saved with :meth:`save`; needs no raw data."""
+        with np.load(path) as z:
+            return cls({k: z[k] for k in z.files})
+
     def inverse(self, v, T):
         """SoC whose OCV equals ``v`` at temperature ``T`` (scalar), clipped to [0, 1].
 

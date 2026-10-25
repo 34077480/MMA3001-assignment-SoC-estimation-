@@ -19,6 +19,7 @@ EXPECTED_ENTRIES = 292
 
 
 def main():
+    """Extract and verify the dataset."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("zip_path")
     a = ap.parse_args()

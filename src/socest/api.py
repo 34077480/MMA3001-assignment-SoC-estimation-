@@ -33,14 +33,32 @@ P0_S = 0.2 ** 2
 _ocv_cache = {}
 
 
+OCV_FILE = RESULTS / "ocv_model.npz"
+"""Fitted OCV model written by ``scripts/fit_ecm.py``. cProfile showed 93 % of ``estimate_soc`` time
+(1.05 of 1.12 s on a 6.2 h cycle) was spent rebuilding OCV from the raw .mat files; loading this file
+instead brings the call to 0.08 s, of which 0.07 s is the EKF itself (plus a one-off ~0.3 s for numba
+to load its compiled code in a fresh process). It also removes the need for the raw data."""
+
+
 def _ocv():
     if "ocv" not in _ocv_cache:
-        _ocv_cache["ocv"] = OCV()
+        _ocv_cache["ocv"] = OCV.load(OCV_FILE) if OCV_FILE.exists() else OCV()
     return _ocv_cache["ocv"]
 
 
-def load_ekf_config(n_rc=2):
+def selected_n_rc():
+    """ECM order chosen on validation (``results/ekf_selected.json``), default 2 if not yet selected."""
+    p = RESULTS / "ekf_selected.json"
+    return json.loads(p.read_text())["n_rc"] if p.exists() else 2
+
+
+def load_ekf_config(n_rc=None):
     """Fitted ECM parameters and tuned EKF settings.
+
+    Parameters
+    ----------
+    n_rc : int, optional
+        ECM order; defaults to the validation-selected one.
 
     Returns
     -------
@@ -50,12 +68,13 @@ def load_ekf_config(n_rc=2):
     alpha : float
         Sigma calibration factor.
     """
+    n_rc = n_rc or selected_n_rc()
     theta = np.load(RESULTS / f"ecm_theta_{n_rc}rc.npy")
     cfg = json.loads((RESULTS / f"ekf_{n_rc}rc_eval.json").read_text())
     return theta, tuple(cfg["q"]), cfg["alpha"]
 
 
-def estimate_soc(v, i, T, dt=DT, method="ekf", soc0=None, n_rc=2, ml_tags=None):
+def estimate_soc(v, i, T, dt=DT, method="ekf", soc0=None, n_rc=None, ml_tags=None):
     """Estimate state of charge.
 
     Parameters
@@ -70,7 +89,7 @@ def estimate_soc(v, i, T, dt=DT, method="ekf", soc0=None, n_rc=2, ml_tags=None):
         Initial SoC. If omitted, EKF and Coulomb counting initialise from the OCV of the first sample,
         which assumes the cell has been resting. Ignored by the ML model.
     n_rc : int, optional
-        RC pairs of the ECM used by the EKF.
+        RC pairs of the ECM used by the EKF; defaults to the order selected on validation.
     ml_tags : list of str, optional
         Trained networks to use (an ensemble if several). Defaults to the selection saved by
         ``scripts/run_all.py`` in ``results/ml_selected.json``.

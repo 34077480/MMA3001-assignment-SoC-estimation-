@@ -12,6 +12,7 @@ from socest.ml import train
 
 
 def main():
+    """Parse arguments, train one network and save it."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--kind", default="lstm", choices=["lstm", "gru"])
     ap.add_argument("--hidden", type=int, default=32)

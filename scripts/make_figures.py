@@ -27,7 +27,13 @@ INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 C = dict(ekf="#2a78d6", lstm="#eb6834", gru="#1baf7a", ens="#6250d6", cc="#8a8984", truth=INK)
 TEMPS = list(TEMP_DIRS)
 TLAB = [f"{T}°C" + ("" if T in TRAIN_TEMPS else "\n(unseen)") for T in TEMPS]
-ML_MAIN = "lstm32_c500_s0"
+SEL = json.loads((RESULTS / "ml_selected.json").read_text())
+"""Selected ML configuration (chosen on validation by scripts/run_all.py)."""
+ML_MAIN = SEL["tags"][0]
+ML_LAB = f"LSTM-{SEL['config'][1]} ({SEL['config'][2]} s window)"
+EKF_N = json.loads((RESULTS / "ekf_selected.json").read_text())["n_rc"]
+"""ECM order selected on validation."""
+EKF_LAB = f"EKF {EKF_N}-RC"
 
 plt.rcParams.update({"font.size": 9, "axes.edgecolor": INK2, "axes.labelcolor": INK, "xtick.color": INK2,
                      "ytick.color": INK2, "axes.spines.top": False, "axes.spines.right": False,
@@ -37,21 +43,25 @@ plt.rcParams.update({"font.size": 9, "axes.edgecolor": INK2, "axes.labelcolor": 
 
 
 def load(name):
+    """Read a JSON file from results/, or None if it does not exist."""
     p = RESULTS / name
     return json.loads(p.read_text()) if p.exists() else None
 
 
 def rmse_by_T(res, method_prefix, scenario="realistic", key="rmse", agg=np.mean):
+    """Aggregate a metric per temperature for one method and scenario (list in TEMPS order)."""
     return [agg([r[key] for r in res if r["scenario"] == scenario and r["temp"] == T
                  and r["method"].startswith(method_prefix)]) for T in TEMPS]
 
 
 def target_line(ax):
+    """Draw the 3 % acceptance threshold on an axis."""
     ax.axhline(TARGET_RMSE, color=INK2, lw=0.8, ls="--")
     ax.text(ax.get_xlim()[1], TARGET_RMSE, " 3 % target", va="center", ha="left", color=INK2, fontsize=8)
 
 
 def fig_ocv(ocv):
+    """OCV at 25 degC with the C/20 curves and HPPC rests; temperature dependence (ocv.png)."""
     fig, ax = plt.subplots(1, 2, figsize=(10, 3.6))
     (sd, vd), (sc, vc) = c20_curves()
     ax[0].plot(sd * 100, vd, color=C["cc"], lw=1, label="C/20 discharge")
@@ -66,23 +76,24 @@ def fig_ocv(ocv):
         l, = ax[1].plot(ocv.s * 100, (ocv(ocv.s, T) - ocv(ocv.s, 25)) * 1000, lw=1.2,
                         color=INK if T in TRAIN_TEMPS else C["lstm"], ls="-" if T in TRAIN_TEMPS else "--")
         ax[1].plot(p[:, 0] * 100, (p[:, 1] - ocv(p[:, 0], 25)) * 1000, mk, ms=4, mfc="white", mec=l.get_color())
-        ax[1].text(101, (ocv(1.0, T) - ocv(1.0, 25)) * 1000 if T != 25 else 0, f" {T}°C", fontsize=7,
-                   va="center", color=l.get_color())
-    ax[1].set(xlabel="SoC [%]", ylabel="OCV(T) − OCV(25°C) [mV]", xlim=(0, 108), ylim=(-95, 15),
+        ax[1].text(1, (ocv(0.01, T) - ocv(0.01, 25)) * 1000 + 2.5, f"{T}°C", fontsize=7.5,
+                   va="bottom", color=l.get_color())   # curves are well separated at low SoC
+    ax[1].set(xlabel="SoC [%]", ylabel="OCV(T) − OCV(25°C) [mV]", xlim=(0, 102), ylim=(-95, 15),
               title="Temperature dependence\n(black: training T, orange dashed: unseen T; markers: rests)")
     fig.savefig(FIG / "ocv.png")
     plt.close(fig)
 
 
 def fig_voltage_fit(ocv):
+    """Measured vs selected-ECM voltage on test cycles and voltage RMSE by temperature (voltage_fit.png)."""
     fig, ax = plt.subplots(1, 3, figsize=(12, 3.4), gridspec_kw=dict(width_ratios=[1.3, 1.3, 1]))
-    th = np.load(RESULTS / "ecm_theta_2rc.npy")
+    th = np.load(RESULTS / f"ecm_theta_{EKF_N}rc.npy")
     for a, (T, c) in zip(ax[:2], [(25, "US06"), (-20, "UDDS")]):
         r = load_cycle(T, c)
         vs = simulate(th, r.soc, r.T, r.i, DT, ocv.table, ocv.s0, ocv.ds)
         sl = slice(int(1500 / DT), int(1800 / DT))
         a.plot(r.t[sl] - r.t[sl][0], r.v[sl], color=INK, lw=1, label="measured")
-        a.plot(r.t[sl] - r.t[sl][0], vs[sl], color=C["ekf"], lw=1, label="2-RC model")
+        a.plot(r.t[sl] - r.t[sl][0], vs[sl], color=C["ekf"], lw=1, label=f"{EKF_N}-RC model")
         a.set(xlabel="time [s]", ylabel="V", title=f"{T}°C {c} (test cycle), 300 s window")
         a.legend(fontsize=8)
     for n_rc, mk in [(1, "s"), (2, "o"), (3, "^")]:
@@ -98,7 +109,8 @@ def fig_voltage_fit(ocv):
 
 
 def fig_trajectories(ocv):
-    theta, q, alpha = load_ekf_config(2)
+    """SoC trajectories and errors with 3-sigma bands for three test cases (trajectories.png)."""
+    theta, q, alpha = load_ekf_config(EKF_N)
     nets = [load_model(ML_MAIN)]
     a_ml = load(f"ml_{ML_MAIN}_eval.json")["alpha"]
     cases = [(25, "UDDS", "realistic"), (-10, "HWFET", "realistic"), (-20, "US06", "realistic")]
@@ -112,8 +124,8 @@ def fig_trajectories(ocv):
         h = run.t / 3600
         a0.plot(h, run.soc * 100, color=INK, lw=1.8, label="truth")
         a0.plot(h, cc * 100, color=C["cc"], lw=1, label="Coulomb counting")
-        a0.plot(h, se * 100, color=C["ekf"], lw=1, label="EKF 2-RC")
-        a0.plot(h, sm * 100, color=C["lstm"], lw=1, label="LSTM-32")
+        a0.plot(h, se * 100, color=C["ekf"], lw=1, label=EKF_LAB)
+        a0.plot(h, sm * 100, color=C["lstm"], lw=1, label=ML_LAB)
         a0.set(ylabel="SoC [%]", title=f"{T}°C {c}{'' if T in TRAIN_TEMPS else ' (unseen T)'} — {scn} sensors")
         a1.fill_between(h, -300 * alpha * sg, 300 * alpha * sg, color=C["ekf"], alpha=0.15, lw=0, label="EKF ±3σ")
         a1.fill_between(h, -300 * a_ml * sgm, 300 * a_ml * sgm, color=C["lstm"], alpha=0.12, lw=0, label="LSTM ±3σ")
@@ -131,13 +143,14 @@ def fig_trajectories(ocv):
 
 
 def fig_accuracy(ekf_res, ml):
+    """Test RMSE and worst settled error by temperature (accuracy_by_temperature.png)."""
     fig, ax = plt.subplots(1, 2, figsize=(11, 3.6))
     x = np.arange(5)
-    seeds = [load(f"ml_lstm32_c500_s{s}_eval.json") for s in range(3)]
+    seeds = [load(f"ml_{t}_eval.json") for t in SEL["seeds"]]
     seeds = [s["results"] for s in seeds if s]
     series = [("Coulomb counting", rmse_by_T(ekf_res, "coulomb"), C["cc"], None),
-              ("EKF 2-RC", rmse_by_T(ekf_res, "ekf"), C["ekf"], None),
-              ("LSTM-32 (mean of 3 seeds)", np.mean([rmse_by_T(s, "lstm") for s in seeds], 0), C["lstm"],
+              (EKF_LAB, rmse_by_T(ekf_res, "ekf"), C["ekf"], None),
+              (f"{ML_LAB}, mean of 3 seeds", np.mean([rmse_by_T(s, "lstm") for s in seeds], 0), C["lstm"],
                np.ptp([rmse_by_T(s, "lstm") for s in seeds], 0) / 2)]
     w = 0.26
     for k, (lab, vals, col, err) in enumerate(series):
@@ -147,8 +160,8 @@ def fig_accuracy(ekf_res, ml):
     ax[0].set(ylabel="RMSE [% SoC]", title="Accuracy on test cycles, realistic sensors\n(error bars: seed range)")
     target_line(ax[0])
     ax[0].legend(fontsize=8, loc="upper left")
-    for k, (lab, pre, col, res) in enumerate([("EKF 2-RC", "ekf", C["ekf"], ekf_res),
-                                              ("LSTM-32 seed 0", "lstm", C["lstm"], ml)]):
+    for k, (lab, pre, col, res) in enumerate([(EKF_LAB, "ekf", C["ekf"], ekf_res),
+                                              (f"{ML_LAB}, seed 0", "lstm", C["lstm"], ml)]):
         vals = rmse_by_T(res, pre, key="maxabs_settled", agg=np.max)
         ax[1].bar(x + (k - 0.5) * 0.36, vals, 0.33, color=col, label=lab)
     ax[1].set_xticks(x, TLAB, fontsize=8)
@@ -159,7 +172,8 @@ def fig_accuracy(ekf_res, ml):
 
 
 def fig_robustness(ekf_res, ml):
-    methods = [("Coulomb counting", ekf_res, "coulomb"), ("EKF 2-RC", ekf_res, "ekf"), ("LSTM-32", ml, "lstm")]
+    """RMSE heatmap by sensor scenario and method (robustness.png)."""
+    methods = [("Coulomb counting", ekf_res, "coulomb"), (EKF_LAB, ekf_res, "ekf"), (ML_LAB, ml, "lstm")]
     scen = list(SCENARIOS)
     M = np.array([[np.mean([r["rmse"] for r in res if r["scenario"] == s and r["method"].startswith(p)])
                    for s in scen] for _, res, p in methods])
@@ -177,6 +191,7 @@ def fig_robustness(ekf_res, ml):
 
 
 def fig_sensitivity(sens):
+    """Covariance surface, sampling rate, parameter tornado, LSTM settings (sensitivity.png)."""
     fig, ax = plt.subplots(2, 2, figsize=(11, 7))
     g = sens["covariance_surface"]
     qv = g["chosen"][1]
@@ -236,23 +251,33 @@ def fig_sensitivity(sens):
 
 
 def fig_pareto(perf, sens):
+    """Accuracy vs compute with the Pareto front (pareto.png)."""
     models = perf["models"]
     rc = sens["n_rc"]
     pts = [(f"EKF {n}-RC", models[f"ekf_{n}rc"]["flops_per_s"], rc[str(n)]["soc_rmse"], C["ekf"], "o")
            for n in (1, 2, 3) if f"ekf_{n}rc" in models and str(n) in rc]
+    # the sampling-rate study showed the selected EKF loses nothing at 2 Hz: include it as the optimised point
+    sr = {float(k): v for k, v in sens["sampling_rate_hz"].items()}
+    if 2.0 in sr:
+        pts.append((f"EKF {EKF_N}-RC at 2 Hz", models[f"ekf_{EKF_N}rc"]["flops_per_s"] / 5, sr[2.0], C["ekf"], "o"))
     for tag, key, lab, col, mk in [("lstm16_c500_s0", "lstm16", "LSTM-16", C["lstm"], "s"),
-                                   ("lstm32_c500_s0", "lstm32", "LSTM-32", C["lstm"], "s"),
+                                   ("lstm32_c500_s0", "lstm32", "LSTM-32 (500 s)", C["lstm"], "s"),
+                                   ("lstm32_c100_s0", "lstm32", "LSTM-32 (100 s, selected)", C["lstm"], "s"),
                                    ("lstm64_c500_s0", "lstm64", "LSTM-64", C["lstm"], "s"),
                                    ("gru32_c500_s0", "gru32", "GRU-32", C["gru"], "D")]:
         if tag in sens["ml"]:
             pts.append((lab, models[key]["flops_per_s"], sens["ml"][tag]["rmse"], col, mk))
-    if "ens3_lstm32" in sens["ml"]:
-        pts.append(("3×LSTM-32 ensemble", 3 * models["lstm32"]["flops_per_s"], sens["ml"]["ens3_lstm32"]["rmse"],
-                    C["ens"], "*"))
-    fig, ax = plt.subplots(figsize=(7, 4.2))
+    ens = SEL.get("ensemble")
+    if ens in sens["ml"]:
+        pts.append(("3-seed ensemble (100 s)", 3 * models[f"lstm{SEL['config'][1]}"]["flops_per_s"],
+                    sens["ml"][ens]["rmse"], C["ens"], "*"))
+    # hand-placed label offsets [points] where labels would otherwise collide
+    nudge = {"LSTM-32 (500 s)": (6, 4), "LSTM-32 (100 s, selected)": (6, -12), f"EKF {EKF_N}-RC": (6, 6),
+             "LSTM-64": (6, 4), "3-seed ensemble (100 s)": (-20, -14)}
+    fig, ax = plt.subplots(figsize=(7.5, 4.4))
     for lab, x, y, col, mk in pts:
-        ax.plot(x, y, mk, color=col, ms=9 if mk == "*" else 7, mec="white", mew=1.5)
-        ax.annotate(lab, (x, y), xytext=(6, 4), textcoords="offset points", fontsize=8, color=INK)
+        ax.plot(x, y, mk, color=col, ms=14 if mk == "*" else 7, mec="white", mew=1.2)
+        ax.annotate(lab, (x, y), xytext=nudge.get(lab, (6, 4)), textcoords="offset points", fontsize=8, color=INK)
     # Pareto front: no other point is both cheaper and more accurate
     front = sorted([p for p in pts if not any(q[1] <= p[1] and q[2] < p[2] and q != p for q in pts)],
                    key=lambda p: p[1])
@@ -266,13 +291,14 @@ def fig_pareto(perf, sens):
 
 
 def fig_before_after():
+    """Before/after comparisons of the main design changes (before_after.png)."""
     fig, ax = plt.subplots(1, 3, figsize=(12, 3.4))
     x = np.arange(5)
     d10, d2 = load("ekf_2rc_d10_eval.json"), load("ekf_2rc_eval.json")
     for k, (lab, d, col) in enumerate([("residual at 1 Hz (before)", d10, C["cc"]), ("at 5 Hz (after)", d2, C["ekf"])]):
         ax[0].bar(x + (k - 0.5) * 0.36, rmse_by_T(d["results"], "ekf"), 0.33, color=col, label=lab)
     ax[0].set_xticks(x, TLAB, fontsize=7)
-    ax[0].set(ylabel="EKF test RMSE [% SoC]", title="ECM fit: residual sampling")
+    ax[0].set(ylabel="EKF test RMSE [% SoC]", title="2-RC ECM fit: residual sampling", ylim=(0, 4.6))
     target_line(ax[0])
     ax[0].legend(fontsize=7, loc="upper left")
     g = d2["tuning"]
@@ -284,12 +310,15 @@ def fig_before_after():
         ax[1].text(k, c_ * 100 + 2, f"RMSE {r_:.2f} %", ha="center", fontsize=8, color=INK)
     ax[1].set_xticks([0, 1], ["RMSE-only tuning", "coverage-constrained"])
     ax[1].set(ylabel="3σ coverage on validation [%]", ylim=(0, 110), title="EKF tuning objective")
-    v0, v1 = load("ml_lstm32_c500_v0_eval.json"), load("ml_lstm32_c500_s0_eval.json")
-    if v0 and v1:
-        for k, (lab, d, col) in enumerate([("first LSTM (before)", v0, C["cc"]), ("β-NLL, lr 1e-3 (after)", v1, C["lstm"])]):
-            ax[2].bar(x + (k - 0.5) * 0.36, rmse_by_T(d["results"], "lstm"), 0.33, color=col, label=lab)
+    v0, v1, v2 = (load("ml_lstm32_c500_v0_eval.json"), load("ml_lstm32_c500_s0_eval.json"),
+                  load(f"ml_{ML_MAIN}_eval.json"))
+    if v0 and v1 and v2:
+        w = 0.27
+        for k, (lab, d, col) in enumerate([("first LSTM", v0, C["cc"]), ("+ β-NLL, lr 1e-3", v1, C["gru"]),
+                                           (f"+ {SEL['config'][2]} s BPTT window (selected)", v2, C["lstm"])]):
+            ax[2].bar(x + (k - 1) * w, rmse_by_T(d["results"], "lstm"), w - 0.03, color=col, label=lab)
         ax[2].set_xticks(x, TLAB, fontsize=7)
-        ax[2].set(ylabel="LSTM test RMSE [% SoC]", title="LSTM training changes")
+        ax[2].set(ylabel="LSTM test RMSE [% SoC]", title="LSTM training changes", ylim=(0, 4.6))
         target_line(ax[2])
         ax[2].legend(fontsize=7, loc="upper left")
     fig.tight_layout()
@@ -298,9 +327,10 @@ def fig_before_after():
 
 
 def main():
+    """Generate every figure."""
     FIG.mkdir(exist_ok=True)
     ocv = OCV()
-    ekf_res = load("ekf_2rc_eval.json")["results"]
+    ekf_res = load(f"ekf_{EKF_N}rc_eval.json")["results"]
     ml = load(f"ml_{ML_MAIN}_eval.json")["results"]
     sens, perf = load("sensitivity.json"), load("perf.json")
     fig_ocv(ocv)

@@ -107,6 +107,7 @@ def mcu_us(c):
 
 
 def profile(label, fn):
+    """Run fn under cProfile and save the top 15 functions by cumulative time."""
     pr = cProfile.Profile()
     pr.enable()
     fn()
@@ -117,6 +118,7 @@ def profile(label, fn):
 
 
 def main():
+    """Measure and count everything; write results/perf.json."""
     torch.set_num_threads(1)
     ocv = OCV()
     run = load_cycle(25, "UDDS")
@@ -154,6 +156,7 @@ def main():
         xt = torch.from_numpy(X[:2000].astype(np.float32))[None]
 
         def torch_steps():
+            """One PyTorch call per time step (as a naive deployment would)."""
             hs = None
             with torch.no_grad():
                 for t in range(xt.shape[1]):
@@ -169,6 +172,8 @@ def main():
         e["mcu_us_per_step"] = mcu_us(e)
         e["mcu_cpu_load_pct"] = e["mcu_us_per_step"] * e["rate_hz"] / 1e4
 
+    import socest.api as api
+    api._ocv_cache.clear()
     profile("ekf_pipeline", lambda: estimate_soc(run.v, run.i, run.T, method="ekf", soc0=1.0))
     if (RESULTS / "ml_selected.json").exists():
         profile("ml_pipeline", lambda: estimate_soc(run.v, run.i, run.T, method="ml"))

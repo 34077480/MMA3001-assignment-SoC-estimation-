@@ -2,23 +2,15 @@
 
 Policy
 ------
-=====================================  ==========================================================
-Condition                              Handling
-=====================================  ==========================================================
-Arrays of different length, not 1-D,   ``ValueError``
-or fewer than 2 samples
-Non-numeric / complex data             ``ValueError``
-Values outside physical hard limits    ``ValueError`` (sensor fault or wrong units; the message
-(e.g. V > 5, T > 100 degC)             suggests the likely unit mistake, e.g. mV or kelvin)
-Missing samples (NaN/inf), short gaps  Linearly interpolated, ``InputDomainWarning`` issued
-(<= ``max_gap_s``)
-Missing samples, longer gaps           ``ValueError``: the estimator would be running blind
-Non-uniform or non-increasing time     ``ValueError``: resample to a uniform grid first
-stamps (if ``t`` is given)
-Inside the hard limits but outside the ``InputDomainWarning``: the models extrapolate there and
-range seen in training (e.g. T < -21    accuracy is not validated
-degC or > 34 degC, |I| > 21 A)
-=====================================  ==========================================================
+| Condition | Handling |
+|---|---|
+| Arrays of different length, not 1-D, or fewer than 2 samples | `ValueError` |
+| Non-numeric / complex data | `ValueError` |
+| Values outside physical hard limits (e.g. V > 5 V, T > 100 degC) | `ValueError` (sensor fault or wrong units; the message suggests the likely unit mistake, e.g. mV or kelvin) |
+| Missing samples (NaN/inf), gaps up to `max_gap_s` | Linearly interpolated, `InputDomainWarning` issued |
+| Missing samples, longer gaps | `ValueError`: the estimator would be running blind |
+| Non-uniform or non-increasing time stamps (if `t` is given) | `ValueError`: resample to a uniform grid first |
+| Inside the hard limits but outside the range seen in training (e.g. T < -21 or > 34 degC, I < -21.5 A) | `InputDomainWarning`: the models extrapolate there and accuracy is not validated |
 
 Warnings rather than errors for out-of-domain data is deliberate: a BMS must keep producing an estimate,
 but the caller should know the validation evidence does not cover it.

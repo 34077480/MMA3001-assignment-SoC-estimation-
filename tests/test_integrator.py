@@ -74,30 +74,34 @@ def test_simulate_matches_analytic_2rc(synthetic_ocv):
 
 
 def figure():
+    """Write results/figures/integrator_verification.png (step response and error vs step size)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    col = dict(zoh="#2a78d6", euler="#eb6834", tustin="#1baf7a")
     fig, ax = plt.subplots(1, 2, figsize=(11, 4))
     tt = np.linspace(0, T_END, 1000)
-    ax[0].plot(tt, exact(tt) * 1000, "k", lw=2, label="analytical")
+    ax[0].plot(tt, exact(tt) * 1000, color="#0b0b0b", lw=2, label="analytical")
     for m, st in [("zoh", "o"), ("euler", "s"), ("tustin", "^")]:
         t, v = step(m, 10.0)
-        ax[0].plot(t, v * 1000, st + "--", ms=5, label=f"{m}, dt = tau/2")
-    ax[0].set(xlabel="t [s]", ylabel="v_RC [mV]", title=f"Step response, R={R*1000:.0f} mOhm, tau={TAU:.0f} s, I={I} A")
+        ax[0].plot(t, v * 1000, st + "--", color=col[m], ms=5, lw=1, label=f"{m}, dt = tau/2")
+    ax[0].set(xlabel="t [s]", ylabel="v_RC [mV]",
+              title=f"Step response: R = {R*1000:.0f} mOhm, tau = {TAU:.0f} s, I = {I} A")
     dts = np.logspace(-2, np.log10(30), 25)
     for m in ["zoh", "euler", "tustin"]:
         e = np.array([max_err(m, dt) for dt in dts])
-        ax[1].loglog(dts / TAU, np.maximum(e, 1e-17) * 1000, "o-", ms=3, label=m)
-    ax[1].axvline(2, color="r", lw=0.8, ls=":")
-    ax[1].text(2.1, 1e-9, "Euler stability\nlimit dt = 2 tau", color="r", fontsize=8)
-    ax[1].axvline(0.1 / 3.0, color="g", lw=0.8, ls=":")
-    ax[1].text(0.036, 1e-12, "our dt / fastest tau", color="g", fontsize=8)
-    ax[1].set(xlabel="dt / tau", ylabel="max |error| [mV]", title="Discretisation error vs step size", ylim=(1e-15, 1e5))
+        ax[1].loglog(dts / TAU, np.maximum(e, 1e-17) * 1000, "o-", color=col[m], ms=3, label=m)
+    ax[1].axvline(2, color="#e34948", lw=0.8, ls=":")
+    ax[1].text(1.9, 1e2, "Euler stability\nlimit dt = 2 tau ", color="#52514e", fontsize=8, ha="right")
+    ax[1].axvline(0.1 / 3.0, color="#52514e", lw=0.8, ls=":")
+    ax[1].text(0.036, 1e-10, " project dt /\n fastest tau", color="#52514e", fontsize=8)
+    ax[1].set(xlabel="dt / tau", ylabel="max |error| [mV]", title="Discretisation error vs step size",
+              ylim=(1e-15, 1e5))
     for a in ax:
         a.grid(alpha=0.3, which="both")
         a.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(RESULTS / "figures" / "integrator_verification.png", dpi=130)
+    fig.savefig(RESULTS / "figures" / "integrator_verification.png", dpi=150)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,11 @@ Solver: ``scipy.optimize.least_squares`` (trust-region reflective) with bounds o
 2-point finite-difference Jacobian. Convergence: stops when the relative cost reduction falls below
 ftol = 1e-8 (status 2) or after 200 evaluations.
 
+Memory: the default 'exact' trust-region sub-solver takes a dense SVD of the (residuals x parameters)
+Jacobian and holds several copies of it; for the 3-RC model at 5 Hz that is 592 k x 63 (285 MB per copy)
+and it ran out of memory on a 16 GB laptop. The 3-RC fit therefore uses the iterative 'lsmr' sub-solver,
+which needs only Jacobian-vector products (memory ~ one copy of J). 1- and 2-RC use 'exact'.
+
 Residual sampling: the simulation always runs at 10 Hz; the residual is evaluated every ``--decim``
 samples. Default 2 (5 Hz). An earlier 1 Hz setting (``--decim 10``, forced by a memory limit at the time)
 gave similar voltage RMSE but worse SoC accuracy in the cold and less physical parameters; the comparison
@@ -38,6 +43,7 @@ def fit(n_rc, runs, ocv, decim):
     tab, s0, ds = ocv.table, ocv.s0, ocv.ds
 
     def resid(p):
+        """Voltage residual vector (simulated - measured) for a flat parameter vector."""
         th = p.reshape(shape)
         return np.concatenate([(simulate(th, r.soc, r.T, r.i, DT, tab, s0, ds) - r.v)[::decim] for r in runs])
 
@@ -51,9 +57,11 @@ def fit(n_rc, runs, ocv, decim):
         lo[2 + 2 * m, :-2], hi[2 + 2 * m, :-2] = np.log(tau_lo), np.log(tau_hi)
     x0 = np.clip(th0, lo + 1e-9, hi - 1e-9).ravel()
     t0 = time.time()
+    tr_solver = "lsmr" if n_rc >= 3 else "exact"
     sol = least_squares(resid, x0, bounds=(lo.ravel(), hi.ravel()), x_scale="jac", method="trf",
-                        max_nfev=200, verbose=0)
-    info = dict(n_rc=n_rc, decim=decim, nfev=int(sol.nfev), status=int(sol.status), time_s=time.time() - t0,
+                        tr_solver=tr_solver, max_nfev=200, verbose=0)
+    info = dict(n_rc=n_rc, decim=decim, tr_solver=tr_solver, nfev=int(sol.nfev), status=int(sol.status),
+                time_s=time.time() - t0,
                 train_rmse_mV=float(np.sqrt(np.mean(sol.fun ** 2)) * 1000), n_residuals=len(sol.fun),
                 n_params=int(sol.x.size))
     print(f"  {n_rc}RC: {info['nfev']} evals, {info['time_s']:.0f}s, status {info['status']}, "
@@ -73,12 +81,14 @@ def evaluate(theta, ocv):
 
 
 def main():
+    """Parse arguments, fit (or re-evaluate) the requested models and write reports."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("n_rc", type=int, nargs="+")
     ap.add_argument("--decim", type=int, default=2)
     ap.add_argument("--eval-only", action="store_true", help="re-evaluate saved parameters without refitting")
     a = ap.parse_args()
     ocv = OCV()
+    ocv.save(RESULTS / "ocv_model.npz")      # used by socest.api without the raw data
     fitted = {}
     if a.eval_only:
         for n_rc in a.n_rc:

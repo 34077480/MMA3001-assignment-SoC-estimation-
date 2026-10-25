@@ -46,6 +46,7 @@ def evaluate(nets, alpha, name):
 
 
 def main():
+    """Calibrate and evaluate the given networks (or ensemble) and save results."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("tags", nargs="+")
     ap.add_argument("--name", default=None)

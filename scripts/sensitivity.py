@@ -5,7 +5,7 @@ mean over the 15 test runs (3 EPA cycles x 5 temperatures), unless stated otherw
 2. Number of RC pairs (1, 2, 3): voltage RMSE and EKF SoC RMSE.
 3. Sampling rate: the EKF run at 10, 5, 2, 1 and 0.5 Hz with the *same* parameters. The ZOH
    discretisation is exact, so no refit is needed; process noise is scaled to stay constant per second.
-4. One-at-a-time parameter perturbation of the 2-RC EKF (which inputs matter most): each resistance and
+4. One-at-a-time parameter perturbation of the selected EKF (which inputs matter most): each resistance and
    time constant x0.8 / x1.2, the OCV curve +-10 mV, and the capacity +-5 % (implemented as an equivalent
    current-gain error).
 5. Recurrent network: truncated-BPTT window (100-1000 s), hidden size (16-64) and seed repeatability.
@@ -16,7 +16,8 @@ import json
 
 import numpy as np
 
-from socest.api import P0_S, load_ekf_config
+from socest.api import P0_S, load_ekf_config, selected_n_rc
+from socest.ecm import n_rc_of
 from socest.data import DT, RESULTS, TEMP_DIRS, TEST_CYCLES, Run, load_cycle
 from socest.ekf import ekf
 from socest.metrics import soc_metrics
@@ -27,6 +28,7 @@ SC = SCENARIOS["realistic"]
 
 
 def test_runs():
+    """Load the 15 held-out test runs."""
     return [load_cycle(T, c) for T in TEMP_DIRS for c in TEST_CYCLES]
 
 
@@ -51,12 +53,13 @@ def ekf_rmse(theta, q, runs, ocv, table=None, i_gain=0.0, decim=1):
 
 
 def main():
+    """Run all sensitivity studies."""
     ocv = OCV()
     runs = test_runs()
     res = {}
 
     # 1. covariance surface from the validation tuning
-    cfg = json.loads((RESULTS / "ekf_2rc_eval.json").read_text())
+    cfg = json.loads((RESULTS / f"ekf_{selected_n_rc()}rc_eval.json").read_text())
     res["covariance_surface"] = dict(chosen=cfg["q"], grid=cfg["tuning"])
 
     # 2. number of RC pairs
@@ -76,7 +79,7 @@ def main():
     res["n_rc"] = rc
     print("n_rc:", {k: round(v["soc_rmse"], 2) for k, v in rc.items()})
 
-    theta, q, _ = load_ekf_config(2)
+    theta, q, _ = load_ekf_config()          # validation-selected ECM order
 
     # 3. sampling rate
     base, _ = ekf_rmse(theta, q, runs, ocv)
@@ -87,7 +90,7 @@ def main():
     print("sampling rate:", {k: round(v, 2) for k, v in rates.items()})
 
     # 4. one-at-a-time perturbations
-    names = ["R0"] + [f"{p}{m+1}" for m in range(2) for p in ("R", "tau")]
+    names = ["R0"] + [f"{p}{m+1}" for m in range(n_rc_of(theta)) for p in ("R", "tau")]
     pert = {}
     for row, nm in enumerate(names):
         for f in (0.8, 1.2):
