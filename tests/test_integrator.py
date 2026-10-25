@@ -4,17 +4,15 @@ For a current step I applied at t = 0 to an RC pair starting relaxed:
     v(t) = R I (1 - exp(-t / tau))
 Exact zero-order hold must reproduce this to rounding error for ANY dt; forward Euler is first order and
 unstable for dt > 2 tau; Tustin (bilinear) is second order. Also checks ecm.simulate end to end against
-the analytical 2-RC terminal voltage. Run:  python tests/test_integrator.py   (writes a figure)
-"""
-import sys
-from pathlib import Path
+the analytical 2-RC terminal voltage.
 
+Run with pytest, or ``python tests/test_integrator.py`` to also write
+``results/figures/integrator_verification.png``.
+"""
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from data import ROOT  # noqa: E402
-from ecm import N_COEF, N_KNOTS, simulate  # noqa: E402
-from ocv import OCV  # noqa: E402
+from socest.data import RESULTS
+from socest.ecm import N_COEF, N_KNOTS, simulate
 
 R, TAU, I = 0.015, 20.0, -5.0
 T_END = 200.0
@@ -60,9 +58,9 @@ def test_euler_unstable_zoh_stable():
     assert np.abs(vz).max() <= abs(R * I) * (1 + 1e-12)
 
 
-def test_simulate_matches_analytic_2rc():
+def test_simulate_matches_analytic_2rc(synthetic_ocv):
     """ecm.simulate with constant parameters vs V = OCV + R0 I + sum R_k I (1 - exp(-t/tau_k))."""
-    ocv = OCV()
+    ocv = synthetic_ocv
     R0, (R1, t1), (R2, t2) = 0.02, (0.01, 3.0), (0.02, 150.0)
     th = np.zeros((5, N_COEF))
     for row, val in enumerate([R0, R1, t1, R2, t2]):
@@ -99,14 +97,10 @@ def figure():
         a.grid(alpha=0.3, which="both")
         a.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(ROOT / "results" / "figures" / "integrator_verification.png", dpi=130)
+    fig.savefig(RESULTS / "figures" / "integrator_verification.png", dpi=130)
 
 
 if __name__ == "__main__":
-    for name, f in list(globals().items()):
-        if name.startswith("test_"):
-            f()
-            print(f"PASS {name}")
     dts = np.array([0.4, 0.2, 0.1, 0.05])
     for m in ["euler", "tustin"]:
         e = [max_err(m, dt) for dt in dts]
