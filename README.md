@@ -113,7 +113,30 @@ temperatures.
 
 ## Results
 
-*(filled in from `results/` after the final run; see `notebooks/results.ipynb`)*
+Test RMSE [% SoC] on the held-out EPA cycles with a simulated low-cost sensor (10-point initial SoC
+error, 30 mA offset, 1 % gain error, noise). Model choices were made on the validation cycle only:
+validation selected the **3-RC EKF** and an **LSTM-32 trained with a 100 s BPTT window**.
+
+| | 25 °C | 10 °C (unseen) | 0 °C | -10 °C (unseen) | -20 °C |
+|---|---|---|---|---|---|
+| Coulomb counting | 8.83 | 8.92 | 9.35 | 9.47 | 9.58 |
+| EKF 2-RC | 1.24 | 1.10 | 1.89 | 2.62 | 2.89 |
+| EKF 3-RC (selected) | 1.30 | 1.65 | 1.48 | 2.21 | 3.40 |
+| LSTM-32, mean of 3 seeds (range) | 1.23 (1.18-1.31) | 1.60 (1.30-1.95) | 1.70 (1.56-1.81) | 2.86 (2.46-3.61) | 2.42 (2.33-2.57) |
+| LSTM-32, 3-seed ensemble | 1.08 | 1.38 | 1.59 | 2.61 | 2.04 |
+
+* Coulomb counting is exact on clean lab data (the ground truth is Coulomb counting on a precision
+  shunt) but drifts to ~9 % with a realistic sensor; both the EKF and the LSTM stay near 1-3 %.
+* The EKF and a single LSTM are effectively tied on average (no significance test was run); which wins depends on temperature, and
+  LSTM seed-to-seed spread (up to 1.15 points) is as large as the differences between methods.
+* Worst-case error after convergence: EKF 2.8-8.8 %, LSTM 4.3-8.1 %. The EKF fails on -20 °C US06
+  (6-8 % low for the whole cycle, outside its own uncertainty band).
+* Cost per second of driving: EKF 3-RC 8.6 kFLOP at 10 Hz (and no accuracy loss at 2 Hz, i.e. 1.7 kFLOP),
+  LSTM-32 9.5 kFLOP at 1 Hz. The numba EKF (2-RC) is ~196× faster than the NumPy reference with identical output.
+* Most influential EKF inputs: assumed capacity (-5 % → +0.8 points RMSE), then R1 and R0.
+* Neither method's 3σ uncertainty reaches the 95 % coverage target on the test set.
+
+Figures are in `results/figures/`; every number above is recomputed in `notebooks/results.ipynb`.
 
 ## AI use
 
