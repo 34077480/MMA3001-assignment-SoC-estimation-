@@ -116,3 +116,18 @@ def test_coulomb_count_bias_drift():
     n = int(3600 / DT)
     s = coulomb_count(np.full(n + 1, 0.05), DT, 0.5)
     assert abs((s[-1] - 0.5) - 0.05 / Q_REF) < 1e-10   # 36 000 additions: allow rounding
+
+
+def test_numba_matches_numpy_reference(synthetic_ocv, theta2):
+    """The optimised (numba, explicit loops) EKF must equal the readable NumPy implementation."""
+    from socest.ekf import ekf_reference
+    oc = synthetic_ocv
+    n = 3000
+    rng = np.random.default_rng(2)
+    i = np.repeat(rng.uniform(-10, 5, n // 30), 30)
+    T = np.linspace(-15, 25, n)
+    v = simulate(theta2, coulomb_count(i, DT, 0.8), T, i, DT, oc.table, oc.s0, oc.ds) + 0.003 * rng.standard_normal(n)
+    args = (theta2, v, i, T, DT, oc.table, oc.s0, oc.ds, 0.6, 0.04, 1e-8, 1e-7, 0.01)
+    a, b = ekf(*args), ekf_reference(*args)
+    for x, y in zip(a, b):
+        assert np.max(np.abs(x - y)) < 1e-10

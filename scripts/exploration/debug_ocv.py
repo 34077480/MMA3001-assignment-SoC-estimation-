@@ -1,6 +1,6 @@
 import numpy as np
 
-from ocv import OCV, hppc_rest_points
+from socest.ocv import OCV, hppc_rest_points
 
 ocv = OCV()
 p25 = hppc_rest_points(25)

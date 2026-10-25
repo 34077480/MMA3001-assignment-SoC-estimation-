@@ -3,9 +3,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from data import DT, ROOT, load_cycle
-from ecm import simulate
-from ocv import OCV
+from socest.data import DT, ROOT, load_cycle
+from socest.ecm import simulate
+from socest.ocv import OCV
 
 ocv = OCV()
 th = np.load(ROOT / "results" / "ecm_theta_1rc.npy")

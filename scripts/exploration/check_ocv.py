@@ -4,8 +4,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from data import ROOT
-from ocv import OCV, c20_curves, hppc_rest_points
+from socest.data import ROOT
+from socest.ocv import OCV, c20_curves, hppc_rest_points
 
 ocv = OCV()
 print("C/20-discharge correction [mV] at knots", np.round(ocv.tab["c20_offset"] * 1000, 1))

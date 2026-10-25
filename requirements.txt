@@ -1,0 +1,14 @@
+# Exact versions used to produce the committed results (Python 3.10.5, Windows 11, CPU only).
+# Install with:  pip install -r requirements.txt  &&  pip install -e .
+# For PyTorch CPU-only wheels:  pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+numpy==1.26.4
+scipy==1.15.3
+numba==0.68.0
+llvmlite==0.50.0
+matplotlib==3.8.3
+torch==2.14.1
+pytest==9.1.1
+pytest-html==4.2.0
+pdoc==16.0.0
+nbconvert==7.17.2
+ipykernel==7.3.0

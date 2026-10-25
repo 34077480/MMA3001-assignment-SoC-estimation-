@@ -1,0 +1,98 @@
+{
+ "mcu": {
+  "hz": 168000000.0,
+  "flop_cycles": 1.0,
+  "trans_cycles": 60
+ },
+ "models": {
+  "ekf_1rc": {
+   "flops": 218,
+   "transcendental": 5,
+   "bytes_read": 312,
+   "params_total": 3330,
+   "state_floats": 6,
+   "rate_hz": 10,
+   "us_per_step": 0.12182965892034742,
+   "flops_per_s": 2180,
+   "arith_intensity": 0.6987179487179487,
+   "mcu_us_per_step": 3.083333333333333,
+   "mcu_cpu_load_pct": 0.003083333333333333
+  },
+  "ekf_2rc": {
+   "flops": 460,
+   "transcendental": 8,
+   "bytes_read": 504,
+   "params_total": 3348,
+   "state_floats": 12,
+   "rate_hz": 10,
+   "us_per_step": 0.20281095333300786,
+   "numpy_reference_us_per_step": 39.64362000042456,
+   "flops_per_s": 4600,
+   "arith_intensity": 0.9126984126984127,
+   "mcu_us_per_step": 5.595238095238095,
+   "mcu_cpu_load_pct": 0.005595238095238095
+  },
+  "lstm16": {
+   "flops": 2704,
+   "transcendental": 81,
+   "bytes_read": 5640,
+   "params_total": 1378,
+   "state_floats": 32,
+   "rate_hz": 1,
+   "us_per_step": 0.8370116275791253,
+   "numba_vs_torch_maxdiff": 5.3073476724563307e-08,
+   "torch_per_step_us": 171.5367500000866,
+   "torch_whole_sequence_us_per_step": 0.7704000017838553,
+   "flops_per_s": 2704,
+   "arith_intensity": 0.4794326241134752,
+   "mcu_us_per_step": 45.023809523809526,
+   "mcu_cpu_load_pct": 0.004502380952380952
+  },
+  "lstm32": {
+   "flops": 9504,
+   "transcendental": 161,
+   "bytes_read": 19464,
+   "params_total": 4802,
+   "state_floats": 64,
+   "rate_hz": 1,
+   "us_per_step": 2.640513208694009,
+   "numba_vs_torch_maxdiff": 4.248737051071316e-08,
+   "torch_per_step_us": 178.89185000240104,
+   "torch_whole_sequence_us_per_step": 1.0586499993223697,
+   "flops_per_s": 9504,
+   "arith_intensity": 0.4882860665844636,
+   "mcu_us_per_step": 114.07142857142857,
+   "mcu_cpu_load_pct": 0.011407142857142857
+  },
+  "lstm64": {
+   "flops": 35392,
+   "transcendental": 321,
+   "bytes_read": 71688,
+   "params_total": 17794,
+   "state_floats": 128,
+   "rate_hz": 1,
+   "us_per_step": 10.429692163833765,
+   "numba_vs_torch_maxdiff": 3.753916588689066e-08,
+   "torch_per_step_us": 184.6000000005006,
+   "torch_whole_sequence_us_per_step": 2.8592500020749867,
+   "flops_per_s": 35392,
+   "arith_intensity": 0.49369490012275413,
+   "mcu_us_per_step": 325.30952380952385,
+   "mcu_cpu_load_pct": 0.03253095238095238
+  },
+  "gru32": {
+   "flops": 7232,
+   "transcendental": 97,
+   "bytes_read": 14600,
+   "params_total": 3618,
+   "state_floats": 32,
+   "rate_hz": 1,
+   "torch_per_step_us": 129.9265500056208,
+   "torch_whole_sequence_us_per_step": 21.603549997962546,
+   "flops_per_s": 7232,
+   "arith_intensity": 0.49534246575342467,
+   "mcu_us_per_step": 77.69047619047619,
+   "mcu_cpu_load_pct": 0.007769047619047619
+  }
+ }
+}

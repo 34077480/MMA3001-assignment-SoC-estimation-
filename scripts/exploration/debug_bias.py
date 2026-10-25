@@ -3,9 +3,9 @@ import sys
 
 import numpy as np
 
-from data import DT, ROOT, TEMP_DIRS, load_cycle
-from ecm import simulate
-from ocv import OCV
+from socest.data import DT, ROOT, TEMP_DIRS, load_cycle
+from socest.ecm import simulate
+from socest.ocv import OCV
 
 n_rc = int(sys.argv[1]) if len(sys.argv) > 1 else 2
 ocv = OCV()

@@ -186,3 +186,48 @@ def ekf(theta, v, i, T, dt, tab, s0_tab, ds_tab, soc0, p0_s, q_s, q_v, r):
                     acc += tmp[a, c] * F[b, c]
                 P[a, b] = acc + (Qd[a] if a == b else 0.0)
     return soc, sig, innov
+
+
+def ekf_reference(theta, v, i, T, dt, tab, s0_tab, ds_tab, soc0, p0_s, q_s, q_v, r):
+    """Readable NumPy implementation of the same filter, without numba.
+
+    It uses the same parameter/OCV lookups (called from Python) and ordinary matrix algebra. Two purposes:
+    an independent implementation that :func:`ekf` must reproduce to rounding error
+    (``tests/test_ekf.py``), and the unoptimised baseline in the runtime comparison (``scripts/perf.py``).
+    Same parameters and returns as :func:`ekf`.
+    """
+    n_rc = (theta.shape[0] - 1) // 2
+    nx = 1 + n_rc
+    x = np.zeros(nx)
+    x[0] = soc0
+    P = np.diag([p0_s] + [1e-4] * n_rc)
+    Q = np.diag([q_s] + [q_v] * n_rc)
+    I = np.eye(nx)
+    out = np.empty((3, len(v)))
+    for k in range(len(v)):
+        xk = 1000.0 / (T[k] + 273.15) - TREF_X
+        ocv, docv = _ocv(tab, s0_tab, ds_tab, x[0], T[k])
+        r0, dr0 = _param(theta[0], x[0], xk)
+        H = np.ones(nx)
+        H[0] = docv + dr0 * i[k]
+        e = v[k] - (ocv + r0 * i[k] + x[1:].sum())
+        K = P @ H / (H @ P @ H + r)
+        x = x + K * e
+        A = I - np.outer(K, H)
+        P = A @ P @ A.T + r * np.outer(K, K)
+        out[:, k] = x[0], np.sqrt(max(P[0, 0], 0.0)), e
+        s = x[0]
+        F = np.eye(nx)
+        xn = x.copy()
+        xn[0] = s + i[k] * dt / (3600.0 * Q_REF)
+        for m in range(n_rc):
+            R, dR = _param(theta[1 + 2 * m], s, xk)
+            tau, dtau = _param(theta[2 + 2 * m], s, xk)
+            a = np.exp(-dt / tau)
+            da = a * dt / tau ** 2 * dtau
+            F[1 + m, 1 + m] = a
+            F[1 + m, 0] = da * x[1 + m] + (dR * (1 - a) - R * da) * i[k]
+            xn[1 + m] = a * x[1 + m] + R * (1 - a) * i[k]
+        x = xn
+        P = F @ P @ F.T + Q
+    return out[0], out[1], out[2]

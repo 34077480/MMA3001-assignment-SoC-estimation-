@@ -1,7 +1,7 @@
 """Sanity summary of every drive-cycle file: duration, sample rate, ranges, and a Coulomb-count check."""
 import numpy as np
 
-from data import CYCLES, TEMP_DIRS, find_cycle_file, load_cycle, load_mat
+from socest.data import CYCLES, TEMP_DIRS, find_cycle_file, load_cycle, load_mat
 
 hdr = ("run", "dur_min", "dt_med", "dt_max", "V0", "Vmin", "Ah0", "Ah_end", "SoC_end",
        "Imin", "Imax", "Tmin", "Tmax", "CC_err_mAh")

@@ -1,7 +1,7 @@
 """HPPC files: rest voltage before each pulse group (approx. OCV) vs SoC, per temperature."""
 import numpy as np
 
-from data import Q_REF, RAW, load_mat
+from socest.data import Q_REF, RAW, load_mat
 
 for f in sorted(RAW.rglob("*5*ulse*HPPC*.mat")):
     d = load_mat(f)

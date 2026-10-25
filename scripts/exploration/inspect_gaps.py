@@ -1,7 +1,7 @@
 """Check slow-logged (>1 s) steps left inside each drive cycle after trimming the leading rest."""
 import numpy as np
 
-from data import CYCLES, TEMP_DIRS, find_cycle_file, load_mat
+from socest.data import CYCLES, TEMP_DIRS, find_cycle_file, load_mat
 
 for T in TEMP_DIRS:
     for c in CYCLES:
