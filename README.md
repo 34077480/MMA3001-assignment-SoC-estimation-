@@ -69,6 +69,7 @@ Tested with Python 3.10.5 on Windows 11, CPU only.
 ```bash
 python -m venv .venv
 .venv\Scripts\activate          # Windows;  source .venv/bin/activate on Linux/macOS
+python -m pip install --upgrade pip   # the pip bundled with Python 3.10 cannot install current torch
 pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 pip install -e .
@@ -90,6 +91,8 @@ python scripts/get_data.py path/to/wykht8y7tg-1.zip
 python scripts/run_all.py                          # everything from raw data (~1.5-2 h, CPU)
 python scripts/run_all.py --skip-fit --skip-train  # reuse committed parameters and networks (~10 min)
 python -m pytest                                   # tests only (~15 s; data tests skip without the dataset)
+python -m pytest --html=docs/test_report.html --self-contained-html   # tests + HTML test report
+python -m pdoc socest -o docs/api --docformat numpy                    # rebuild the HTML API docs
 ```
 
 Individual steps: `fit_ecm.py` → `run_ekf.py` → `train_ml.py` → `run_ml.py` → `sensitivity.py` →
