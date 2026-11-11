@@ -143,7 +143,7 @@ Figures are in `results/figures/`; every number above is recomputed in `notebook
 
 ## AI use
 
-This project was developed with guidance and assistance from Claude (Anthropic) via Claude Code, primarily for problem-solving, debugging, and code improvement. The implementation was carried out by the author, who reviewed, adapted, and tested the suggested outputs. The nature and extent of AI assistance, the verification process, and any errors encountered are described in the report’s AI-use reflection.
+This project was developed with guidance and assistance from Claude, primarily for problem-solving, debugging, and code improvement. The implementation carried out by me as I reviewed, adapted, and tested the suggested outputs. The nature and extent of AI assistance, the verification process, and any errors encountered are described in the report’s AI-use reflection.
 
 ## Licence and citation
 
